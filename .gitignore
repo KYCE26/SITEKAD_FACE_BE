@@ -1,0 +1,11 @@
+.env
+.exe
+.vscode
+bin
+SITEKAD.exe
+vendor 
+SITEKAD
+uploads
+.DS_Store
+prototype
+build
