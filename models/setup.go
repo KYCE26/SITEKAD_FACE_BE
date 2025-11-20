@@ -12,20 +12,25 @@ import (
 var DB *gorm.DB
 
 func ConnectDatabase() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	// 1. Coba load file .env (Khusus lokal)
+	// Di Railway file ini ga ada, jadi pasti error.
+	// Kita pakai '_ =' untuk MENGABAIKAN error-nya. Jangan di-Fatal!
+	_ = godotenv.Load() 
+
+	// 2. Ambil variabel dari System Environment (Railway Variable)
+	dbURL := os.Getenv("DATABASE_URL")
+	
+	// 3. Baru cek di sini. Kalau variabelnya kosong, baru boleh panic.
+	if dbURL == "" {
+		log.Fatal("FATAL ERROR: Variable DATABASE_URL tidak ditemukan! Cek settings Railway.")
 	}
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-        log.Fatal("Link Database Tidak Ada!")
-    }
+	// 4. Konek ke Database
 	db, err := gorm.Open(mysql.Open(dbURL), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Gagal Terhubung ke Database: %v", err)
 	}
 
-    log.Println("Koneksi Database Berhasil.")
+	log.Println("Koneksi Database Berhasil.")
 	DB = db
 }
