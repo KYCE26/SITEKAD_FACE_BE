@@ -116,7 +116,7 @@ func ScanAbsensiHandler(c *gin.Context) {
 		}
 
 	} else {
-		// --- JALUR B: QR CODE (Logika Lama) ---
+		// --- JALUR B: QR CODE ---
 		metodeAbsen = "QR Code"
 
 		if payload.KodeQr == "" {
@@ -124,20 +124,28 @@ func ScanAbsensiHandler(c *gin.Context) {
 			return
 		}
 
-		// Validasi QR Code dan Lokasi
-		err := models.DB.Where("kodeqr = ? AND penempatan_id = ?", payload.KodeQr, currentUser.Id).First(&targetLokasi).Error
+		// 1. Cari Lokasi berdasarkan QR Code saja
+		err := models.DB.Where("kodeqr = ?", payload.KodeQr).First(&targetLokasi).Error
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
-				c.JSON(http.StatusForbidden, gin.H{"error": "QR Code Salah atau Anda tidak terdaftar di lokasi ini!"})
+				c.JSON(http.StatusForbidden, gin.H{"error": "QR Code Salah! Tidak ditemukan di database."})
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memvalidasi QR Code"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "DB Error saat cek QR: " + err.Error()})
+			return
+		}
+
+		// 2. Validasi: Apakah User ini memang ditugaskan di Lokasi tersebut?
+		if targetLokasi.ID != currentUser.Lokasi_kerja_id {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": fmt.Sprintf("Anda tidak terdaftar di lokasi ini! (Lokasi Anda ID: %d, QR ID: %d)", currentUser.Lokasi_kerja_id, targetLokasi.ID),
+			})
 			return
 		}
 	}
 
 	// =========================================================
-	// LOGIKA UMUM (RADIUS & SIMPAN DATA) - TIDAK BERUBAH
+	// LOGIKA UMUM (RADIUS & SIMPAN DATA)
 	// =========================================================
 
 	// 1. Cek Radius (Geofencing)
@@ -303,6 +311,7 @@ func PrediksiCheckout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"check_in":          todayAbsen.Jam_masuk,
 		"Prediksi Checkout": predictedCheckout,
-		"Jumlah Absen":      len(history),
+		// "prediction_available":  true,
+		"Jumlah Absen": len(history),
 	})
 }
